@@ -13,7 +13,7 @@ Cette organisation est privée, et seuls les membres approuvés ont accès à no
 
 ## 📖 Comment Commencer  
 Si vous êtes nouveau chez XPR :  
-1. Lisez notre [Guide de Contribution](https://github.com/XPR-ALG/.github/blob/main/docs/Guide%20de%20contribution.md).  
+1. Lisez notre [Guide de Contribution](https://github.com/XPR-ALG/.github/blob/main/Docs/Guide%20de%20contribution.md).  
 2. Familiarisez-vous avec notre [Code de Conduite](#).  
 3. Rejoignez nos canaux de communication internes ([Discord](https://discord.gg/chq8kRYC96).  
 4. Clonez les dépôts nécessaires et commencez à contribuer !  
