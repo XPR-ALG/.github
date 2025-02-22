@@ -1,0 +1,138 @@
+## Documentation Technique de l'Infrastructure
+
+### 1. Introduction
+- **Objectif** : Cette documentation décrit l'infrastructure utilisée pour héberger l'application XPR. Elle repose sur un cluster Kubernetes géré par Rancher, hébergé sur des serveurs physiques et sécurisé par un pare-feu physique.
+- **Portée** : Elle couvre l'architecture matérielle et logicielle, la gestion du cluster, l'isolation des clients, la scalabilité, le monitoring, la sécurité et les procédures opérationnelles.
+---
+
+### 2. Architecture Globale
+- **Composants Principaux** :
+  - Serveurs physiques (minimum 3 nœuds).
+  - Cluster Kubernetes orchestré par Rancher.
+  - Pare-feu physique pour sécuriser les accès réseau.
+  - Services applicatifs déployés dans des namespaces Kubernetes dédiés par client.
+- **Vue d’ensemble** :
+  - Le pare-feu physique filtre le trafic entrant et sortant.
+  - Les serveurs physiques hébergent le cluster Kubernetes.
+  - Rancher gère le cluster et les déploiements.
+  - Chaque client dispose de services isolés dans son propre namespace (React, API, Rendering, MongoDB).
+- **Diagramme** : Pare-feu → Serveurs → Rancher → Cluster → Namespaces → Services.
+---
+
+### 3. Infrastructure Matérielle
+- **Serveurs Physiques** :
+  - **Nombre** : 3 (1 nœud maître, 2 nœuds workers).
+  - **Spécifications minimales** :
+    - CPU : 4 cœurs.
+    - RAM : 16 Go.
+    - Disque : 128 Go SSD/512 Go HDD.
+    - Système d’exploitation : Ubuntu 20.04 LTS.
+  - **Configuration réseau** :
+    - IP statiques attribuées à chaque serveur.
+    - Connectés via un switch LAN interne.
+- **Pare-feu Physique** :
+  - **Rôle** : Sécuriser le réseau interne et contrôler les flux.
+  - **Configuration réseau** :
+    - Interface WAN : Connexion à Internet.
+    - Interface LAN : Connexion aux serveurs via le switch.
+    - Règles de pare-feu :
+      - Autoriser HTTPS (port 443) pour Rancher et les services applicatifs.
+      - Autoriser SSH (port 22) pour l’administration (avec restrictions IP).
+      - Bloquer tout autre trafic par défaut.
+  - **Marque** :Cisco ou Fortinet.
+---
+
+### 4. Cluster Kubernetes
+- **Installation** : Déployé et géré via Rancher.
+- **Nœuds** :
+  - **Nœud Maître** : Héberge le plan de contrôle Kubernetes (API server, scheduler, etc.).
+  - **Nœuds Workers** : Exécutent les pods des services applicatifs.
+- **Réseau** :
+  - Plugin CNI : Calico (ou autre, à confirmer).
+  - Plage d’IP dédiée pour les pods et services.
+- **Stockage** :
+  - Disques locaux montés sur les nœuds.
+  - StorageClass configurée pour les volumes persistants (ex. : MongoDB).
+---
+
+### 5. Gestion avec Rancher
+- **Déploiement** : Exécuté dans un conteneur Docker sur le nœud maître.
+- **Fonctionnalités** :
+  - Gestion centralisée du cluster Kubernetes.
+  - Déploiement des applications via l’interface ou manifests YAML.
+  - Monitoring intégré avec Prometheus et Grafana.
+  - Gestion des namespaces et des permissions (RBAC).
+---
+
+### 6. Services Applicatifs
+- **Isolation** : Chaque client dispose d’un namespace Kubernetes dédié.
+- **Services par client** :
+  - **Client React** : Deployment Nginx pour l’interface utilisateur.
+  - **API GraphQL** : Deployment Node.js pour les requêtes backend.
+  - **Service de Rendu** : Deployment avec autoscaling (HPA).
+  - **MongoDB** : StatefulSet avec Replica Set pour la base de données.
+- **Configuration** :
+  - Services exposés via des objets `Service` Kubernetes.
+  - Routage externe géré par un Ingress (Traefik).
+---
+
+### 7. Scalabilité et Haute Disponibilité
+- **Service de Rendu** :
+  - Horizontal Pod Autoscaler (HPA) :
+    - Min réplicas : 1.
+    - Max réplicas : 10.
+    - Basé sur la charge CPU.
+- **MongoDB** :
+  - Replica Set : 1 nœud primaire, 2 nœuds secondaires.
+  - Les secondaires gèrent les lectures pour alléger la charge.
+- **Cluster Kubernetes** :
+  - Plusieurs nœuds workers pour assurer la résilience.
+  - Capacité d’ajouter des nœuds si nécessaire.
+---
+
+### 8. Sécurité
+- **Pare-feu Physique** :
+  - Règles strictes : HTTPS (443) et SSH (22) autorisés, tout autre trafic bloqué.
+  - NAT configuré pour exposer Rancher et les services.
+- **Kubernetes** :
+  - **NetworkPolicies** : Isolation entre namespaces.
+  - **RBAC** : Contrôle des accès basé sur les rôles.
+- **Chiffrement** :
+  - TLS pour toutes les communications externes via Traefik.
+  - Certificats gérés par Let’s Encrypt ou une autorité interne.
+- **Sauvegardes** :
+  - Snapshots réguliers des disques pour MongoDB.
+  - Sauvegardes des configurations Kubernetes.
+---
+
+### 9. Monitoring et Alerting
+- **Outils** : Prometheus et Grafana (intégrés à Rancher).
+- **Métriques surveillées** :
+  - Charge CPU et mémoire des pods/nœuds.
+  - Latence des services.
+  - Requêtes par seconde.
+- **Alertes** :
+  - Configurées pour des seuils critiques (ex. : CPU > 80 %, erreurs 5xx).
+---
+
+### 10. Automatisation
+- **Ansible** :
+  - Installation initiale des serveurs (Docker, prérequis Kubernetes).
+  - Configuration des nœuds pour rejoindre Rancher.
+- **Rancher** :
+  - Déploiement automatisé des services via l’interface ou YAML.
+---
+
+### 11. Procédures Opérationnelles
+- **Ajout d’un nouveau client** :
+  1. Créer un namespace dans Rancher.
+  2. Déployer les services via manifests YAML.
+  3. Configurer l’Ingress pour le routage.
+- **Mise à jour des services** :
+  1. Mettre à jour l’image Docker dans le Deployment.
+  2. Appliquer les modifications via Rancher.
+- **Sauvegarde et restauration** :
+  - Sauvegardes MongoDB avec `mongodump`.
+  - Restauration avec `mongorestore`.
+---
+
